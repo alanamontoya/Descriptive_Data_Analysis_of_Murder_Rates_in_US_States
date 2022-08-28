@@ -1,0 +1,442 @@
+---
+title: 'IMT 573: Problem Set 4 - Data Analysis'
+author: "Alana Montoya"
+date: 'Due: Tuesday, November 2, 2021'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+<!-- This syntax can be used to add comments that are ignored during knitting process. -->
+
+##### Collaborators: <!-- BE SURE TO LIST ALL COLLABORATORS HERE! -->
+
+##### Instructions:
+
+Before beginning this assignment, please ensure you have access to R and RStudio. 
+
+1. Download the `problemset4.Rmd` file from Canvas. Open `problemset4.Rmd` in RStudio and supply your solutions to the assignment by editing `problemset4.Rmd`. 
+
+2. Replace the "Insert Your Name Here" text in the `author:` field with your own full name. Any collaborators must be listed on the top of your assignment. 
+
+4. All materials and resources that you use (with the exception of lecture slides) must be appropriately referenced within your assignment. In particular, note that Stack Overflow is licenses as Creative Commons (CC-BY-SA). This means you have to attribute any code you refer from SO.
+
+5. Partial credit will be awarded for each question for which a serious attempt at finding an answer has been shown. But please **DO NOT** submit pages and pages of hard-to-read code and attempts that is impossible to grade. That is, avoid redundancy. Remember that one of the key goals of a data scientist is to produce coherent reports that others can easily follow.  Students are \emph{strongly} encouraged to attempt each question and to document their reasoning process even if they cannot find the correct answer. If you would like to include R code to show this process, but it does not run without errors you can do so with the `eval=FALSE` option as follows:
+
+```{r example chunk with a bug, eval=FALSE}
+a + b # these object dont' exist 
+# if you run this on its own it with give an error
+```
+
+6. When you have completed the assignment and have **checked** that your code both runs in the Console and knits correctly when you click `Knit PDF`, rename the knitted PDF file to `ps4_ourLastName_YourFirstName.pdf`, and submit the PDF file on Canvas.
+
+7.  Collaboration is often fun and useful, but each student must turn in an individual write-up in their own words as well as code/work that is their own.  Regardless of whether you work with others, what you turn in must be your own work; this includes code and interpretation of results. The names of all collaborators must be listed on each assignment. Do not copy-and-paste from other students' responses or code.
+
+##### Setup
+
+In this problem set you will need, at minimum, the following R packages.
+
+```{r Setup, message=FALSE, warning=FALSE}
+# Load standard libraries
+library(tidyverse)
+library(gridExtra)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+```
+
+#### Problem 1: 50 States in the USA
+
+In this problem we will use the `state` dataset, available as part of the R statistical computing platform. This data is related to the 50 states of the United States of America. Load the data and use it to answer the following questions. 
+
+##### (a) Describe the data and each variable it contains. Tidy the data, preparing it for a data analysis.
+
+**Answer:**
+
+The `state` data consists of seven datasets including:
+
+- `state.abb`
+- `state.area`
+- `state.center`
+- `state.division`
+- `state.name`
+- `state.region`
+- `state.x77`
+
+The variables in these datasets are:
+
+- `abb` character vector of 2-letter abbreviations for the state names
+- `area` numeric vector of state areas (in square miles)
+- `center` list with components named x and y giving the approximate geographic center of each state in negative longitude and latitude. Alaska and Hawaii are placed just off the West Coast.
+- `division` factor giving state divisions (New England, Middle Atlantic, South Atlantic, East South Central, West South Central, East North Central, West North Central, Mountain, and Pacific).
+- `name` character vector giving the full state names
+- `region` factor giving the region (Northeast, South, North Central, West) that each state belongs to.
+- `Population` (population estimate as of July 1, 1975)
+- `Income` (income per capita)
+- `Illiteracy` (percent of population who is illiterate)
+- `Life Exp` (life expectancy in years)
+- `Murder` (murder and non-negligent manslaughter rate per 100,000 population)
+- `HS Grad` (percent high-school graduates)
+- `Frost` (mean number of days with minimum temperature below freezing in capital or large city)
+- `Area` (land area in square miles).
+
+```{r, warning=FALSE}
+# First convert `state.center`, `state.division`, `state.region`, and
+# `state.x77` into dataframes so that we can combine all of our datesets in the
+# next step
+state.center <- as.tibble(state.center)
+state.division <- as.tibble(state.division)
+state.region <- as.tibble(state.region)
+state.x77 <- as.tibble(state.x77)
+
+# Combine the datasets to make one dataset called `state`
+state <- cbind(Abbrev = state.abb, Area = state.area, Long = state.center$x,
+               Lat = state.center$y, Division = state.division,
+               Name = state.name, Region = state.region,
+               Population = state.x77$Population, Income = state.x77$Income,
+               Illiteracy = state.x77$Illiteracy,
+               Life_Exp = state.x77$`Life Exp`, Murder = state.x77$Murder,
+               HS_Grad = state.x77$`HS Grad`, Frost = state.x77$Frost,
+               Land_Area = state.x77$Area)
+
+# Rename the columns in `state` that just have a column name called `value`
+colnames(state)[1] <- "Abb"
+colnames(state)[5] <- "Division"
+colnames(state)[7] <- "Region"
+
+# Convert `state` into a dataframe
+state <- as_tibble(state)
+```
+
+Now we can use this dataset in our analysis. Since some of the columns are not in the appropriate datatypes, we can convert them to the correct ones now.
+
+```{r}
+# Change some of the columns to appropriately have numeric data types
+state$Area <- as.numeric(state$Area)
+state$Long <- as.numeric(state$Long)
+state$Lat <- as.numeric(state$Lat)
+state$Population <- as.numeric(state$Population)
+state$Income <- as.numeric(state$Income)
+state$Illiteracy <- as.numeric(state$Illiteracy)
+state$Murder <- as.numeric(state$Murder)
+state$HS_Grad <- as.numeric(state$HS_Grad)
+state$Frost <- as.numeric(state$Frost)
+state$Land_Area <- as.numeric(state$Land_Area)
+
+# Check data types
+glimpse(state)
+```
+
+Now, looking at the columns they all have appropriate data types.
+
+Longitude ranges from -180 to 80 and latitude ranges from -90 to 90. Let's check if our data meets this criteria.
+
+```{r}
+# Inspect longitude data
+range(state$Long)
+sum(is.na(state$Long))
+
+# Inspect latitude data
+range(state$Lat)
+sum(is.na(state$Lat))
+```
+
+There is no unusual longitude or latitude data.
+
+Now let's perform an exploratory analysis by creating a table and a few visualizations of possible interesting topics.
+
+```{r, results='asis'}
+# Find the averages of different numeric variables for each region
+region_avgs <- state %>% group_by(Region) %>%
+  summarise("Population" = mean(Population),
+            "Income" = mean(Income),
+            "Illiteracy" = mean(Illiteracy),
+            "Life Expectancy"  = mean(Life_Exp),
+            "Murder" = mean(Murder),
+            "HS Graduates" = mean(HS_Grad),
+            "Frost" = mean(Frost),
+            "Land Area" = mean(Land_Area))
+
+# Turn `region_avgs` into a table for visual purposes
+kable(region_avgs,
+      row.names = TRUE,
+      align = 'c',
+      caption = "Averages by Region")
+```
+
+The West region has the lowest population. Income does not vary too much by region, though the South has the lowest of the four regions. The South is the worst and North Central is the best in terms of illiteracy. Life expectancy is about the same for all regions, except for the South, which is almost two year less. The South also has the highest murder rate of all of the regions, a lower percent of high-school graduates and about half the number of days of frost compared to the other regions. The West has the most and the Northeast has the least land area in square miles.
+
+```{r, warning=FALSE}
+# Compare how income changes according to the percent of high school graduates
+ggplot(data = state, mapping = aes(x = HS_Grad, y = Income)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "High School Graduates (% of population)",
+       title = "Income is positively correlated with high school graduates")
+```
+
+As the percent of people who graduated from high-school increases, the income per capita also increases.
+
+```{r}
+# Plot the population for each state
+ggplot() +
+  geom_col(data = state, mapping = aes(x = Abb, y = Population)) +
+  labs(x = "State", title = "Population varies significantly by state") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+The population of each state varies a lot. California and New York have the highest populations and Alaska and Wyoming have the lowest populations.
+
+```{r}
+# Explore the population of each division
+state %>% group_by(Division) %>%
+  ggplot(data = state, mapping = aes(x = Division, y = Population)) +
+  geom_col() +
+  labs(title = "Population tends to be higher along the coasts") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+The closer the division is to the coast, the higher populations those states tend to have (except for New England).
+
+##### (b) Suppose you want to explore the relationship between a state's `Murder` rate and other characteristics of the state, for example population, illiteracy rate, and more. Begin by examining the bivariate relationships present in the data. What does your analysis suggest might be important varibles to consider in building a model to explain variation in murder rates?
+
+**Answer:**
+
+In addition to population and illiteracy rates, other interesting relationships with murder rates to explore would be with each state, divisions, regions, income, life expectancy, and high-school graduation rates.
+
+First, we can plot each state on the x-axis and the murder rate on the y-axis to see if any states have a particularly high or low murder rate.
+
+```{r}
+# Plot the murder rate for each state
+state %>% group_by(Abb) %>%
+  ggplot(data = state, mapping = aes(x = Abb, y = Murder)) +
+  geom_col() +
+  labs(x = "State", y = "Murder Rate (per 100,000 people)",
+       title = "The murder rate across the states vary by almost 15 points") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+Alabama and Georgia have the highest murder rates while North Dakota and South Dakota have the lowest murder rates.
+
+Now we can explore the murder rate of each division.
+
+```{r}
+# Plot the murder rate of each division
+state %>% group_by(Division) %>%
+  ggplot(data = state, mapping = aes(x = Division, y = Murder)) +
+  geom_col() +
+  labs(y = "Murder Rate (per 100,000 people)",
+       title="The murder rate across the divisions varies by about 60 points") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+The South Atlantic has the highest murder rate while New England and Middle Atlantic has the lowest murder rate.
+
+Now we can explore the murder of each region.
+
+```{r}
+# Plot the murder rate for each region
+state %>% group_by(Region) %>%
+  ggplot(data = state, mapping = aes(x = Region, y = Murder)) +
+  geom_col() +
+  labs(y = "Murder Rate (per 100,000 people)",
+       title = "The murder rate of each region varies by about 100 points") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+The Southern region by far has the highest murder rate while the Northeastern region has the lowest murder rate.
+
+Now we can explore the murder rate compared to the population of states.
+
+```{r}
+# Plot the murder rate against the population of states
+ggplot(data = state, mapping = aes(x = Population, y = Murder)) +
+  geom_point() +
+  geom_smooth() +
+  labs(y = "Murder Rate (per 100,000 people)",
+       title = "Murder rate has a slight positive correlation with population")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+There is a small decrease in murder rate for populations around 1,250 people, but otherwise there is generally a positive correlation between population and murder rate.
+
+Now we can explore the murder rate compared to the income of states.
+
+```{r}
+# Plot the murder rate against the income of states
+ggplot(data = state, mapping = aes(x = Income, y = Murder)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Income (per capita)", y = "Murder Rate (per 100,000 people)",
+       title = "Murder rates are highest at lower and higher incomes") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+This shows that lower income states and higher income states tend to have higher murder rates.
+
+Now let's explore the murder rate compared to the percent of people who are illiterate in each state.
+
+```{r}
+# Plot the murder rate against the illiteracy of states
+ggplot(data = state, mapping = aes(x = Illiteracy, y = Murder)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Illiteracy (percent of population)",
+       y = "Murder Rate (per 100,000 people)",
+       title = "Murder rate is positively correlated with illiteracy") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2)) +
+   scale_x_discrete(labels=c())
+```
+
+The higher the percentage of people in each state who are illiterate, the higher the murder rate.
+
+Now we can explore the murder rate compared to the life expectancy of each state.
+
+```{r}
+# Plot the murder rate against the life expectancy of states
+ggplot(data = state, mapping = aes(x = Life_Exp, y = Murder)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Life Expectancy (in years)", y = "Murder Rate (per 100,000 people)",
+       title = "Murder rate is higher in states with lower life expactancies") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+As the average life expectancy of states increases, the murder rate deceases.
+
+Now let's explore the murder rate compared to the percent of people who graduated from high-school.
+
+```{r}
+# Plot the murder rate against the percent of people who graduated from
+# high-school of each state
+ggplot(data = state, mapping = aes(x = HS_Grad, y = Murder)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Percent Graduated from High-School",
+       y = "Murder Rate (per 100,000 people)",
+       title = "Murder rates increase when graduation rates are low and high") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2))
+```
+
+This shows that states with low and high graduation rates tend to have higher murder rates.
+
+From these visualizations, murder rates vary significantly based on divisions, regions, illiteracy rates and life expectancy. Hence, these variables suggest that they could provide useful insights when building a model to explains variations in murder rates for states.
+
+##### (c) Develop a new research question of your own that you can address using the `state` dataset. Clearly state the question you are going to address. Provide at least one visualization to support your exploration of this question. Discuss what you find.
+
+
+**Answer:**
+
+_How does income vary by geographical location?_
+
+First we can explore how income varies by region and division. To do this, we can use a stacked bar chart in which each bar represents a region which expresses the income of that region. Then, each region can be further divided to express the income of divisions in those regions.
+
+```{r}
+group_by(state, Region) %>% 
+  ggplot(data = state, mapping = aes(x = Region, y = Income, fill = Division)) +
+  geom_col() +
+  labs(y = "Income (per capita)",
+      title ="The Northeastern region has a relatively lower income per capita")
+```
+
+From this we can see that the Northeastern region has the lowest income and the Southern region has the highest income, though the North Central and Western regions are not too far off. The New England and South Atlantic divisions take up the majority of the income in each of their respective regions. The divisions in the North Central and West regions are fairly evenly distributed.
+
+To explore this even further, we can also plot the income of each state.
+
+```{r}
+ggplot(data = state, mapping = aes(x = Abb, y = Income)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.2)) +
+  labs(x = "State", y = "Income (per capita)",
+      title = "Most states have an income within about $1,500 of each other")
+```
+
+The income per capita in each state is roughly around 4,500, give or take about 700, but Alaska appears to have an exceptionally high income. Mississippi should also be noted has having a fairly low income compared to the rest of the states.
+
+#### Problem 2: Asking Data Science Questions: Crime and Educational Attainment
+
+In Problem Set 3, you joined data about crimes and educational attainment. Here you will use this new combined dataset to examine questions around crimes in Seattle and the educational attainment of people living in the areas in which the crime occurred. 
+
+```{r}
+# Load in dataset
+crimes_edu_data <- read.csv("joined.csv", stringsAsFactors = FALSE)
+```
+
+#### (a) Develop a Data Science Question
+
+Develop your own question to address in this analysis. Your question should be specific and measurable, and it should be able to be addressed through a basic analysis of the crime dataset you compiled in Problem Set 3. 
+
+**Answer:**
+
+_Is there a correlation between the number of crimes committed and the percentage of people who have a bachelors degree in each beat? If so, is the relationship positive, negative or some other type of relationship?_ 
+
+#### (b) Describe and Summarize
+
+Briefly summarize the dataset, describing what data exists and its basic properties. Comment on any issues that need to be resolved before you can proceed with your analysis. 
+
+**Answer:**
+
+Each row in the dataset represents an instance of a crime. The dataset consists of three different categories of data including information about the crime committed, the location of the crime, and the education levels in that location.
+
+We can use glimpse to explore the different data types and how many characteristics are tracked about each crime.
+
+```{r}
+glimpse(crimes_edu_data)
+```
+
+Each crime has 48 characteristics recorded about it. The first column called `X` does not seem to add any value since it simply the row number, so while it is not necessarily bad data, it is repetitive and does not add value, hence it could be removed.
+
+```{r}
+crimes_edu_data <- crimes_edu_data[-1]
+```
+
+Next we can use `summary` to explore each column.
+
+```{r}
+summary(crimes_edu_data)
+```
+
+Since most of the columns were numerical data types, this gives us a general idea of how the data is distributed.
+
+#### (c) Data Analysis
+
+Use the dataset to provide empirical evidence that addressed your question from part (a). Discuss your results. Provide at least one visualization to support your narrative. 
+
+**Answer:**
+
+Now, to answer the question we first need to find the number of crimes committed in each beat and the percentage of people who received a bachelors degree. We can do this using the `dplyr` function `summarise()`.
+
+```{r}
+crime_by_degree <- crimes_edu_data %>%
+  group_by(Beat) %>%
+  summarise(num_crimes = n(),
+            percent_bachelors = (sum(bachelors_degree) / sum(total)) * 100)
+```
+
+Next, we can use this tibble to create a scatterplot that plots the percentage of people who earned a bachelors degree on the x-axis against the number of crimes committed in each beat on the y-axis.
+
+```{r}
+ggplot(data = crime_by_degree, mapping = aes(x = percent_bachelors,
+                                             y = num_crimes)) +
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Percent of people who earned a bachelor's degree", 
+       y = "Number of crimes commited",
+       title = "Crimes increase as the percent of bachelor's degrees increase")
+```
+
+While not too substantial, the number of crimes committed in each beat tends to increase a little as the percentage of people who earned bachelor's degrees increases. The number of crimes seem to go down a little between 35%-40% of people with bachelors degrees, though then begins the quickly increase. Overall, there is a slight positive relationship with number of crimes committed and the percent of people who earned a bachelor's degree.
+
+#### (d) Reflect and Question
+
+Comment the questions (and answers) in this analysis.  Were you able to answer all of these questions?  Are all questions well defined?  Is the data good enough to answer all these?
+
+**Answer:**
+
+_Question: Is there a correlation between the number of crimes committed and the percentage of people who have a bachelors degree in each beat? If so, is the relationship positive, negative or some other type of relationship?_
+
+_Result: There was a slight positive relationship with number of crimes committed and the percent of people who earned a bachelor's degree._
+
+The analysis was fairly straight forward for this question, so there were not any issues that I ran into. Since the data did not need to be manipulated that much, the quality of the response is also good.
+
+My question from part 2(a) was able to be answered. Since the question was written to be as specific and measurable as possible, it was also well defined. While the data was good enough to answer my question, it would be interesting to still further explore if there are any other factors affecting this. For example, there could be more people with bachelor's degrees in the city of Seattle, and since cities tend to have more crime, this could impact the correlation.
